@@ -36,22 +36,6 @@ int main(){
   int prev_bbar_selector = bbar_selector;
   ftxui::MenuOption bbar_option;
   ftxui::Component bbar = ftxui::Toggle(&bbar_entries, &bbar_selector) | ftxui::border;
-  bbar |= ftxui::CatchEvent([&](ftxui::Event e){
-    if(bbar_selector != prev_bbar_selector){
-      prev_bbar_selector = bbar_selector;
-
-      if(bbar_selector == 0){
-        current_screen = ScreenStatus::HabitsMenue;
-        return true;
-      }
-      else if(bbar_selector == 1){
-        current_screen = ScreenStatus::BreaksTimer;
-        return true;
-      }
-    }
-
-    return false;
-  });
 
   ftxui::Component tbar = ftxui::Renderer([]{
     return ftxui::vbox(ftxui::text("Work done today: " + workdonetoday()) | ftxui::center);
@@ -73,6 +57,16 @@ int main(){
   });
 
   ftxui::Component renderer = ftxui::Renderer(habits_menu, [&]{
+    if(bbar_selector != prev_bbar_selector){
+      prev_bbar_selector = bbar_selector;
+      if(bbar_selector == 0){
+        current_screen = ScreenStatus::HabitsMenue;
+      }
+      else if(bbar_selector == 1){ 
+        current_screen = ScreenStatus::BreaksTimer;
+      }
+    }
+
     if(current_screen == ScreenStatus::HabitsMenue){
       return ftxui::vbox({
         tbar->Render(),
@@ -82,7 +76,11 @@ int main(){
       });
     }
     else if(current_screen == ScreenStatus::BreaksTimer){
-      return ftxui::text("break timer");
+      return ftxui::vbox({
+        tbar->Render(),
+        ftxui::filler(),
+        bbar->Render(),
+      });
     }
     else if(current_screen == ScreenStatus::HabitsTimer){
       return ftxui::text("habits timer");
