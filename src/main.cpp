@@ -5,6 +5,7 @@
 #include <ftxui/component/event.hpp>
 #include <ftxui/component/screen_interactive.hpp>
 #include <ftxui/dom/elements.hpp>
+#include <functional>
 #include <string>
 #include <vector>
 #include <utility>
@@ -44,38 +45,56 @@ int main(){
   });
 
   // for adding habits
-  std::string add_habits_content;
-  ftxui::InputOption add_habits_option;
-  add_habits_option.on_enter = [&add_habits_content]{
-    time_habits.push_back({0, add_habits_content});
+  std::string add_habit_content;
+  ftxui::InputOption add_habit_option;
+  add_habit_option.on_enter = [&add_habit_content]{
+    time_habits.push_back({0, add_habit_content});
     // save(time_habits);
-    add_habits_content = "";
+    add_habit_content = "";
   };
-  ftxui::Component add_habits = ftxui::Input(&add_habits_content, "add habit", add_habits_option) | ftxui::borderRounded;
+  ftxui::Component add_habit = ftxui::Input(&add_habit_content, "add habit", add_habit_option) | ftxui::borderRounded;
 
-  ftxui::Component habit_start = ftxui::Button("Play", [&]{
-    current_screen = static_cast<int>(ScreenStatus::HabitsTimer);
-  });
-  ftxui::Component habit_delete = ftxui::Button("Delete", [&]{
-    
-  });
-  ftxui::Component habit_box_component = ftxui::Container::Horizontal({
-    habit_start,
-    habit_delete,
-  });
-  auto habit_box = [&](int time, std::string& name, int idx){
-    return ;
-  };
-  ftxui::Component habit_list = ftxui::Renderer([]{
-    ftxui::Components content;
+  ftxui::Component habits_list = ftxui::Container::Vertical({});
+  std::function<void()> refresh_habits_list = [&]{
+    habits_list->Detach();
+
     for(int h = 0; h < time_habits.size(); h++){
-      int time = time_habits[h].first; std::string name = time_habits[h].second;
-      content.push_back(habits_content_box(time, name, h));
+      ftxui::Component play = ftxui::Button("Play", []{
+      });
+      ftxui::Component remove = ftxui::Button("Delete", [&]{
+        time_habits.erase(time_habits.begin() + h);
+        refresh_habits_list();
+      });
+      ftxui::Component container = ftxui::Container::Horizontal({play, remove});
+
+      ftxui::Component visual = ftxui::Renderer(container, [&]{
+        return ftxui::border(ftxui::hbox({
+          play->Render(),
+          ftxui::text(" " + std::to_string(time_habits[h].first) + " "),
+          ftxui::text(time_habits[h].second),
+          ftxui::filler(),
+          remove->Render(),
+        }));
+
+        habits_list->Add(visual);
+      });
     }
+  };
+
+  ftxui::Component habit_menu_container = ftxui::Container::Vertical({
+    habits_list,
+    add_habit,
+  });
+  ftxui::Component habit_menu = ftxui::Renderer(habit_menu_container, [habits_list, add_habit]{
+    return ftxui::vbox({
+      habits_list->Render(),
+      ftxui::filler(),
+      add_habit->Render()
+    });
   });
 
   ftxui::Component main_content = ftxui::Container::Tab({
-
+    habit_menu,
   }, &current_screen);
 
   ftxui::Component main_app = ftxui::Renderer([&]{
@@ -90,5 +109,6 @@ int main(){
 
   ftxui::Component final_app = ;
 
+  refresh_habit_list();
   screen.Loop(final_app);
 }
