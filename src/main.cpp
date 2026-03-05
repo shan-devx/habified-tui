@@ -63,8 +63,9 @@ int main(){
       ftxui::Component visual = ftxui::Renderer(container, [&, h, play, remove]{
         return ftxui::border(ftxui::hbox({
           play->Render(),
-          ftxui::text(" " + std::to_string(time_habits[h].first) + " "),
-          ftxui::text(time_habits[h].second),
+          ftxui::text(" " + std::to_string(time_habits[h].first) + "h ") | ftxui::center,
+          ftxui::filler(),
+          ftxui::text(time_habits[h].second) | ftxui::center,
           ftxui::filler(),
           remove->Render(),
         }));
