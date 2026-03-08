@@ -1,4 +1,5 @@
 #include "storage.hpp"
+#include <cstdlib>
 #include <ftxui/component/component.hpp>
 #include <ftxui/component/component_base.hpp>
 #include <ftxui/component/component_options.hpp>
@@ -7,8 +8,10 @@
 #include <ftxui/dom/elements.hpp>
 #include <functional>
 #include <string>
+#include <thread>
 #include <vector>
 #include <utility>
+#include <atomic>
 
 std::vector<std::pair<int, std::string>> time_habits;
 
@@ -26,9 +29,178 @@ std::string workdonetoday(){
   return std::to_string(out) + 'h';
 }
 
+ftxui::Element giant_timer(char c){
+  std::vector<std::string> lines;
+
+  switch (c) {
+        case '0': lines = {
+            "    ██████    ", 
+            "  ███    ███  ", 
+            " ███      ███ ", 
+            " ███      ███ ", 
+            " ███      ███ ", 
+            " ███      ███ ", 
+            " ███      ███ ", 
+            " ███      ███ ", 
+            "  ███    ███  ", 
+            "    ██████    ",
+            "              ",
+        }; break;
+        case '1': lines = {
+            "      ███     ", 
+            "    █████     ", 
+            "  ███ ███     ", 
+            "      ███     ", 
+            "      ███     ", 
+            "      ███     ", 
+            "      ███     ", 
+            "      ███     ", 
+            "      ███     ", 
+            "  ███████████ ",
+            "              ",             
+        }; break;
+        case '2': lines = {
+            "    ██████    ", 
+            "  ███    ███  ", 
+            " ███      ███ ", 
+            "          ███ ", 
+            "        ███   ", 
+            "      ███     ", 
+            "    ███       ", 
+            "  ███         ", 
+            " ███          ", 
+            " ████████████ ",
+            "              ",
+        }; break;
+        case '3': lines = {
+            "    ██████    ", 
+            "  ███    ███  ", 
+            "         ███  ", 
+            "         ███  ", 
+            "    ██████    ", 
+            "         ███  ", 
+            "         ███  ", 
+            " ███     ███  ", 
+            "  ███    ███  ", 
+            "    ██████    ",
+            "              ",
+        }; break;
+        case '4': lines = {
+            " ███     ███  ", 
+            " ███     ███  ", 
+            " ███     ███  ", 
+            " ███     ███  ", 
+            " ███████████  ", 
+            "         ███  ", 
+            "         ███  ", 
+            "         ███  ", 
+            "         ███  ", 
+            "         ███  ",
+            "              ",
+        }; break;
+        case '5': lines = {
+            " ███████████  ", 
+            " ███          ", 
+            " ███          ", 
+            " ███          ", 
+            " █████████    ", 
+            "         ███  ", 
+            "         ███  ", 
+            "         ███  ", 
+            " ███     ███  ", 
+            "  █████████   ",
+            "              ",
+        }; break;
+        case '6': lines = {
+            "    ██████    ", 
+            "  ███    ███  ", 
+            " ███          ", 
+            " ███          ", 
+            " █████████    ", 
+            " ███     ███  ", 
+            " ███      ███ ", 
+            " ███      ███ ", 
+            "  ███    ███  ", 
+            "    ██████    ",
+            "              ",
+        }; break;
+        case '7': lines = {
+            " ███████████  ", 
+            " ███      ██  ", 
+            "          ██  ", 
+            "          ██  ", 
+            "        ███   ", 
+            "        ███   ", 
+            "      ███     ", 
+            "      ███     ", 
+            "      ███     ", 
+            "      ███     ",
+            "              ",
+        }; break;
+        case '8': lines = {
+            "   ██████     ", 
+            " ███    ███   ", 
+            " ██      ███  ", 
+            " ██      ███  ", 
+            "   ██████     ", 
+            " ██      ███  ", 
+            " ██      ███  ", 
+            " ██      ███  ", 
+            " ███    ███   ", 
+            "   ██████     ",
+            "              ",
+        }; break;
+        case '9': lines = {
+            "    ██████    ", 
+            "  ███    ███  ", 
+            " ███      ██  ", 
+            " ███      ██  ", 
+            "  ███    ███  ", 
+            "    ████████  ", 
+            "          ██  ", 
+            "          ██  ", 
+            "  ███    ███  ", 
+            "    ██████    ",
+            "              ",
+        }; break;
+        case ':': lines = {
+            "              ", 
+            "              ", 
+            "     ████     ", 
+            "     ████     ", 
+            "              ", 
+            "              ", 
+            "     ████     ", 
+            "     ████     ", 
+            "              ", 
+            "              ",
+            "              ",
+        }; break;
+        default: lines = {
+            "              ",
+            "              ", 
+            "              ", 
+            "              ", 
+            "              ", 
+            "              ", 
+            "              ", 
+            "              ", 
+            "              ", 
+            "              ", 
+            "              "
+        }; break;
+  }
+
+  ftxui::Elements elements;
+  for(std::string s : lines){
+    elements.push_back(ftxui::text(s));
+  }
+
+  return ftxui::vbox(std::move(elements));
+}
+
 int main(){
   load(time_habits);
-
   auto screen = ftxui::ScreenInteractive::Fullscreen();
 
   int current_screen = 0; 
@@ -98,21 +270,80 @@ int main(){
 //------------------------------------------------habit menu---------------------------------------------
 
 //------------------------------------------------break timer--------------------------------------------
-ftxui::Component break_menu = ftxui::Renderer([]{
-  return ftxui::text("break timer");
-});
+  // atomic is used to fix data race bug
+  std::atomic<int> timer_count = 0; // in seconds
+  std::atomic<bool> timer_running = false; 
+  std::atomic<bool> tthread_alive = true;
+  std::thread tm([&]{
+    while(tthread_alive){
+      std::this_thread::sleep_for(std::chrono::seconds(1));
+
+      if(timer_running){
+        timer_count += 1;
+        screen.PostEvent(ftxui::Event::Custom); // wake up call for ftxui to redraw on the screen
+      }
+      else{
+        timer_count = 0;
+        screen.PostEvent(ftxui::Event::Custom);
+      }
+    }
+  });
+
+  ftxui::Component start_break = ftxui::Button("Start", [&]{
+    timer_running = true;
+  });
+  ftxui::Component stop_break = ftxui::Button("Stop", [&]{
+    timer_running = false;
+  });
+
+  ftxui::Component break_timer_options = ftxui::Container::Horizontal({
+    start_break,
+    stop_break,
+  });
+
+  ftxui::Component break_timer = ftxui::Renderer(break_timer_options, [&]{
+    int second = timer_count;
+    int minute = second/60; second = second - (minute * 60);
+
+    ftxui::Elements ascii_minute;
+    for(char s : std::to_string(minute)){
+      ascii_minute.push_back(giant_timer(s));
+    }
+
+    ftxui::Elements ascii_second;
+    for(char s : std::to_string(second)){
+      ascii_second.push_back(giant_timer(s));
+    }
+
+    return ftxui::vbox({
+      ftxui::filler(),
+      ftxui::hbox({
+        ftxui::hbox(ascii_minute),
+        giant_timer(':'),
+        ftxui::hbox(ascii_second),
+      }) | ftxui::center,
+      ftxui::filler(),
+      ftxui::hbox({
+        ftxui::filler(),
+        start_break->Render(),
+        ftxui::filler(),
+        stop_break->Render(),
+        ftxui::filler(),
+      }),
+    });
+  });
 //------------------------------------------------break timer--------------------------------------------
   
   ftxui::Component main_content = ftxui::Container::Tab({
     habit_menu,
-    break_menu,
+    break_timer,
   }, &bbar_selector);  // change it later to current_screen
 
   ftxui::Component temp_master_content = ftxui::Container::Vertical({
     main_content,
     add_habit,
     bbar,
-  });
+  }); // tbar is not indcluded in component cause it is not interactive 
 
   ftxui::Component main_app = ftxui::Renderer(temp_master_content, [&]{
     /*if(prev_bbar_selector != bbar_selector){
@@ -134,4 +365,8 @@ ftxui::Component break_menu = ftxui::Renderer([]{
 
   refresh_habits_list();
   screen.Loop(main_app);
+  
+  tthread_alive = false;
+  tm.join();
+  return EXIT_SUCCESS;
 }
