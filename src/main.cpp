@@ -228,6 +228,7 @@ int main(){
       });
       ftxui::Component remove = ftxui::Button("Delete", [&, h]{ // h is needed by vlaue instead of reffrence
         time_habits.erase(time_habits.begin() + h);
+        save(time_habits);
         refresh_habits_list();
       });
       ftxui::Component container = ftxui::Container::Horizontal({play, remove});
