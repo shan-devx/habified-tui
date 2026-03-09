@@ -24,11 +24,14 @@ enum class ScreenStatus{
 };
 
 std::string workdonetoday(){
-  int out = 0;
+  int second = 0;
   for(std::pair<int, std::string> i : time_habits){
-    out += i.first;
+    second += i.first;
   }
-  return std::to_string(out) + 'h';
+  int hour = second / (60*2); second = second - (hour * 60 * 2);
+  int minute = second / 60; second = second - (minute * 60);
+
+  return std::to_string(hour) + "h " + std::to_string(minute) + "m " + std::to_string(second) + "s ";
 }
 
 // start button, stop button, timer_count
@@ -41,13 +44,16 @@ ftxui::Component timer(ftxui::Component startb, ftxui::Component stopb, std::ato
     int second = timer_count;
     int minute = second/60; second = second - (minute * 60);
 
+    std::string minute_str = minute < 10 ? '0' + std::to_string(minute) : std::to_string(minute);
+    std::string second_str = second < 10 ? '0' + std::to_string(second) : std::to_string(second);
+
     ftxui::Elements ascii_minute;
-    for(char s : std::to_string(minute)){
+    for(char s : minute_str){
       ascii_minute.push_back(giant_timer(s));
     }
 
     ftxui::Elements ascii_second;
-    for(char s : std::to_string(second)){
+    for(char s : second_str){
       ascii_second.push_back(giant_timer(s));
     }
 
@@ -93,16 +99,12 @@ int main(){
     return ftxui::vbox(ftxui::text("Work done: " + workdonetoday()) | ftxui::center);
   });
 
-
-//------------------------------------------------break timer--------------------------------------------
   // atomic is used to fix data race bug
   std::atomic<int> timer_count = 0; // in seconds
   std::atomic<bool> timer_running = false; 
   std::atomic<bool> tthread_alive = true;
   std::thread tm([&]{
     while(tthread_alive){
-      std::this_thread::sleep_for(std::chrono::seconds(1));
-
       if(timer_running){
         timer_count += 1;
         screen.PostEvent(ftxui::Event::Custom); // wake up call for ftxui to redraw on the screen
@@ -111,8 +113,12 @@ int main(){
         timer_count = 0;
         screen.PostEvent(ftxui::Event::Custom);
       }
+
+      std::this_thread::sleep_for(std::chrono::seconds(1));
     }
   });
+
+//------------------------------------------------break timer--------------------------------------------
 
   ftxui::Component start_break = ftxui::Button("Start", [&]{
     timer_running = true;
@@ -147,17 +153,19 @@ int main(){
     pop_up_yes,
   });
 
+  int running_habit = 0;
   ftxui::Component habits_list = ftxui::Container::Vertical({});
   std::function<void()> refresh_habits_list = [&]{
     habits_list->DetachAllChildren();
 
     for(int h = 0; h < time_habits.size(); h++){
-      ftxui::Component play = ftxui::Button("Play", [&]{
+      ftxui::Component play = ftxui::Button("Play", [&, h]{
         if(timer_running){
           show_pop_up = true;
         }
         else{
           show_bbar = false;
+          running_habit = h;
           current_screen = static_cast<int>(ScreenStatus::HabitTimer);
         }
       });
@@ -171,7 +179,7 @@ int main(){
       ftxui::Component visual = ftxui::Renderer(container, [&, h, play, remove]{
         return ftxui::border(ftxui::hbox({
           play->Render(),
-          ftxui::text(" " + std::to_string(time_habits[h].first) + "h ") | ftxui::center,
+          ftxui::text(" " + workdonetoday()) | ftxui::center,
           ftxui::filler(),
           ftxui::text(time_habits[h].second) | ftxui::center,
           ftxui::filler(),
@@ -204,10 +212,19 @@ int main(){
     });
   });
  
-
-  ftxui::Component habit_timer = ftxui::Renderer([]{
-    return ftxui::text("habit timer");
+  ftxui::Component start_habit = ftxui::Button("Start", [&]{
+    timer_running = true;
   });
+
+  ftxui::Component end_habit = ftxui::Button("End", [&]{
+    time_habits[running_habit].first += timer_count;
+    save(time_habits);
+    current_screen = static_cast<int>(ScreenStatus::HabitMenu);
+    show_bbar = true;
+    timer_running = false;
+  });
+  
+  ftxui::Component habit_timer = timer(start_habit, end_habit, timer_count);
 
 //------------------------------------------------habit menu---------------------------------------------
 
