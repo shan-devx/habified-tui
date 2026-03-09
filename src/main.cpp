@@ -263,8 +263,8 @@ int main(){
   });
   ftxui::Component habit_menu = ftxui::Renderer(habit_menu_container, [habits_list, add_habit]{
     return ftxui::vbox({
+      add_habit->Render(),
       habits_list->Render(),
-      ftxui::filler(),
     });
   });
 //------------------------------------------------habit menu---------------------------------------------
@@ -315,22 +315,24 @@ int main(){
       ascii_second.push_back(giant_timer(s));
     }
 
-    return ftxui::vbox({
+    ftxui::Element timer = ftxui::hbox({
+      ftxui::hbox(ascii_minute),
+      giant_timer(':'),
+      ftxui::hbox(ascii_second),
+    }) | ftxui::center;
+
+    ftxui::Element options = ftxui::hbox({
       ftxui::filler(),
-      ftxui::hbox({
-        ftxui::hbox(ascii_minute),
-        giant_timer(':'),
-        ftxui::hbox(ascii_second),
-      }) | ftxui::center,
+      start_break->Render(),
       ftxui::filler(),
-      ftxui::hbox({
-        ftxui::filler(),
-        start_break->Render(),
-        ftxui::filler(),
-        stop_break->Render(),
-        ftxui::filler(),
-      }),
+      stop_break->Render(),
+      ftxui::filler(),
     });
+
+    return ftxui::vbox({
+      timer,
+      options,
+    }) | ftxui::center;
   });
 //------------------------------------------------break timer--------------------------------------------
   
@@ -339,22 +341,19 @@ int main(){
     break_timer,
   }, &bbar_selector);  // change it later to current_screen
 
-  ftxui::Component temp_master_content = ftxui::Container::Vertical({
+  ftxui::Component app_content = ftxui::Container::Vertical({
     main_content,
-    add_habit,
     bbar,
   }); // tbar is not indcluded in component cause it is not interactive 
 
-  ftxui::Component main_app = ftxui::Renderer(temp_master_content, [&]{
+  ftxui::Component app = ftxui::Renderer(app_content, [&]{
     /*if(prev_bbar_selector != bbar_selector){
       current_screen = bbar_selector;
       prev_bbar_selector = bbar_selector;
     } */
     return ftxui::vbox({
       tbar->Render(),
-      main_content->Render(),
-      ftxui::filler(),
-      add_habit->Render(),
+      main_content->Render() | ftxui::flex,
       bbar->Render(),
     });
   });
@@ -364,7 +363,7 @@ int main(){
   //ftxui::Component final_app = ;
 
   refresh_habits_list();
-  screen.Loop(main_app);
+  screen.Loop(app);
   
   tthread_alive = false;
   tm.join();
