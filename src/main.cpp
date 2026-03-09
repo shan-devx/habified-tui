@@ -31,6 +31,49 @@ std::string workdonetoday(){
   return std::to_string(out) + 'h';
 }
 
+// start button, stop button, timer_count
+ftxui::Component timer(ftxui::Component startb, ftxui::Component stopb, std::atomic<int> &timer_count){
+  ftxui::Component timer_options = ftxui::Container::Horizontal({
+    startb,
+    stopb,
+  });
+  ftxui::Component out = ftxui::Renderer(timer_options, [&, stopb, startb]{
+    int second = timer_count;
+    int minute = second/60; second = second - (minute * 60);
+
+    ftxui::Elements ascii_minute;
+    for(char s : std::to_string(minute)){
+      ascii_minute.push_back(giant_timer(s));
+    }
+
+    ftxui::Elements ascii_second;
+    for(char s : std::to_string(second)){
+      ascii_second.push_back(giant_timer(s));
+    }
+
+    ftxui::Element timer = ftxui::hbox({
+      ftxui::hbox(ascii_minute),
+      giant_timer(':'),
+      ftxui::hbox(ascii_second),
+    }) | ftxui::center;
+
+    ftxui::Element options = ftxui::hbox({
+      ftxui::filler(),
+      startb->Render(),
+      ftxui::filler(),
+      stopb->Render(),
+      ftxui::filler(),
+    });
+
+    return ftxui::vbox({
+      timer,
+      options,
+    }) | ftxui::center;
+  });
+
+  return out;
+}
+
 int main(){
   load(time_habits);
   auto screen = ftxui::ScreenInteractive::Fullscreen();
@@ -83,40 +126,9 @@ int main(){
     stop_break,
   });
 
-  ftxui::Component break_timer = ftxui::Renderer(break_timer_options, [&]{
-    int second = timer_count;
-    int minute = second/60; second = second - (minute * 60);
+  ftxui::Component break_timer = timer(start_break, stop_break, timer_count);
 
-    ftxui::Elements ascii_minute;
-    for(char s : std::to_string(minute)){
-      ascii_minute.push_back(giant_timer(s));
-    }
-
-    ftxui::Elements ascii_second;
-    for(char s : std::to_string(second)){
-      ascii_second.push_back(giant_timer(s));
-    }
-
-    ftxui::Element timer = ftxui::hbox({
-      ftxui::hbox(ascii_minute),
-      giant_timer(':'),
-      ftxui::hbox(ascii_second),
-    }) | ftxui::center;
-
-    ftxui::Element options = ftxui::hbox({
-      ftxui::filler(),
-      start_break->Render(),
-      ftxui::filler(),
-      stop_break->Render(),
-      ftxui::filler(),
-    });
-
-    return ftxui::vbox({
-      timer,
-      options,
-    }) | ftxui::center;
-  });
-//------------------------------------------------break timer--------------------------------------------
+ //------------------------------------------------break timer--------------------------------------------
   
 // ----------------------------------------------habit menu----------------------------------------------
 
@@ -191,7 +203,8 @@ int main(){
       habits_list->Render(),
     });
   });
-  
+ 
+
   ftxui::Component habit_timer = ftxui::Renderer([]{
     return ftxui::text("habit timer");
   });
